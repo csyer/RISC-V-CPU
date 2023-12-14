@@ -2,14 +2,14 @@
 // port modification allowed for debugging purposes
 
 module cpu(
-  input  wire                 clk_in,			// system clock signal
-  input  wire                 rst_in,			// reset signal
+    input  wire                 clk_in,			// system clock signal
+    input  wire                 rst_in,			// reset signal
 	input  wire					        rdy_in,			// ready signal, pause cpu when low
 
-  input  wire [ 7:0]          mem_din,		// data input bus
-  output wire [ 7:0]          mem_dout,		// data output bus
-  output wire [31:0]          mem_a,			// address bus (only 17:0 is used)
-  output wire                 mem_wr,			// write/read signal (1 for write)
+    input  wire [ 7:0]          mem_din,		// data input bus
+    output wire [ 7:0]          mem_dout,		// data output bus
+    output wire [31:0]          mem_a,			// address bus (only 17:0 is used)
+    output wire                 mem_wr,			// write/read signal (1 for write)
 	
 	input  wire                 io_buffer_full, // 1 if uart buffer is full
 	
@@ -28,20 +28,14 @@ module cpu(
 // - 0x30004 read: read clocks passed since cpu starts (in dword, 4 bytes)
 // - 0x30004 write: indicates program stop (will output '\0' through uart tx)
 
-always @(posedge clk_in)
-  begin
-    if (rst_in)
-      begin
-      
-      end
-    else if (!rdy_in)
-      begin
-      
-      end
-    else
-      begin
-      
-      end
-  end
+always @(posedge clk_in) begin
+    if (rst_in) begin
+    
+    end else if (!rdy_in) begin
+    
+    end else begin
+    
+    end
+end
 
 endmodule

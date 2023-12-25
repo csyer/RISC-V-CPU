@@ -1,3 +1,5 @@
+`define WID32 31: 0
+
 module Decoder(
     input wire clk,
     input wire rst,
@@ -14,8 +16,6 @@ module Decoder(
     output wire [31: 0] rs2,
     output wire [31: 0] imm,
     output wire [31: 0] rd
-)
-
-
+);
 
 endmodule

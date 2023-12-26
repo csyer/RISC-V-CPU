@@ -1,8 +1,10 @@
 `define ROB_LEN 32
 `define REG_SIZ 32
 
-`define WID32 31: 0
-`define WIDROB `ROBLEN - 1: 0
+`define DATA_WID 31:0
+`define INST_WID 31:0
+`define ROB_WID `ROBLEN - 1:0
+`define REG_WID `REGSIZ - 1:0
 
 `define OPCODE_L      7'b0000011
 `define OPCODE_S      7'b0100011

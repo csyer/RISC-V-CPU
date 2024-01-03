@@ -113,7 +113,7 @@ always @(*) begin
                 imm = {{20{inst[31]}}, inst[7], inst[30:25], inst[11:8], 1'b0};
             end
             `OPCODE_LUI: begin
-                is_ready = 1;
+                rs_en = 1;
                 rs1_rdy = 1;
                 rs1_val = 0;
                 rs1_rob_pos = 0;
@@ -133,7 +133,7 @@ always @(*) begin
                 imm = {inst[31:12], 12'b0};
             end
             `OPCODE_JAL: begin
-                is_ready = 1;
+                rs_en = 1;
                 rs1_rdy = 1;
                 rs1_val = 0;
                 rs1_rob_pos = 0;

@@ -1,10 +1,15 @@
-`define ROB_LEN 32
+`define ROB_SIZ 32
 `define REG_SIZ 32
 
 `define DATA_WID 31:0
 `define INST_WID 31:0
-`define ROB_WID `ROBLEN - 1:0
-`define REG_WID `REGSIZ - 1:0
+`define ADDR_WID 31:0
+`define ROB_WID `ROB_LEN - 1:0
+`define REG_WID `REG_SIZ - 1:0
+
+`define CACHE_LINE_NUM 16
+`define CACHE_LINE_LEN 64
+`define CACHE_LINE_WID `CACHE_LINE_LEN * 8 - 1:0
 
 `define OPCODE_L      7'b0000011
 `define OPCODE_S      7'b0100011

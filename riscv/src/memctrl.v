@@ -8,9 +8,9 @@ module MemCtrl(
 
     input wire rollback, 
 
-    input wire [7: 0] mem_din,
-    output reg [7: 0] mem_dout,
-    output reg [31: 0] mem_a,
+    input wire [7:0] mem_din,
+    output reg [7:0] mem_dout,
+    output reg [31:0] mem_a,
     output reg mem_wr,
 
     input wire if_en,
@@ -53,14 +53,16 @@ always @(posedge clk) begin
                     end else if (if_en) begin
                         status <= 1;
                         mem_a <= if_pc;
-                        pos <= 0;
+                        stage <= 0;
                         len <= `ICACHE_LINE_SIZ;
                     end
                 end
             end
             1: begin // IF
-                _if_data[stage] <= mem_din;
-                mem_a <= mem_a + 1;
+                _if_data[stage - 1] <= mem_din;
+                // mem 会迟一个周期把值送过来
+                if (stage + 1 == len) mem_a <= 0;
+                else mem_a <= mem_a + 1;
                 if (stage == len) begin
                     if_done <= 1;
                     mem_wr <= 0;

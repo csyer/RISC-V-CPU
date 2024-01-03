@@ -36,7 +36,11 @@ module IFetch(
 
     output reg inst_done,
     output reg [`INST_WID] inst,
-    output reg [`ADDR_WID] inst_pc
+    output reg [`ADDR_WID] inst_pc,
+
+    input wire pre_br,
+    input wire pre_br_j, // is jump
+    input wire [`ADDR_WID] pre_br_pc
 )
 
 reg status; // 0: IDLE, 1: FETCH
@@ -56,8 +60,9 @@ wire [`ICACHE_TAG_WID] mem_pc_tag = mem_pc[`ICACHE_TAG];
 wire [`ICACHE_IDX_WID] mem_pc_idx = mem_pc[`ICACHE_IDX];
 
 wire [`ICACHE_LINE_WID] line = data[pc_idx];
+wire [`INST_WID] _inst = line[(pc_bs + 1) * 32 - 1:pc_bs * 32];
 
-integer i, j;
+integer i;
 always @(posedge clk) begin
     if (rst) begin
         pc <= 32'b0;
@@ -71,7 +76,7 @@ always @(posedge clk) begin
     end else if (rdy) begin
         if (hit && !rs_full && !lsb_full && !rob_full) begin
             inst_done <= 1;
-            inst <= line[(pc_bs + 1) * 32 - 1:pc_bs * 32];
+            inst <= _inst;
             inst_pc <= pc;
         end else begin
             inst_done <= 0;
@@ -96,6 +101,53 @@ always @(posedge clk) begin
             end
         endcase
     end
+end
+
+// Predictor
+`define PRE_SIZ 64  // 2^6
+reg [1:0] pre_cnt[`PRE_SIZ - 1:0];
+wire [5:0] pre_idx = pre_br_pc[7:2];
+
+integer j;
+always @(posedge clk) begin
+    if (rst) begin
+        for (j = 0; j < `PRE_SIZ; i = i + 1) begin
+            pre_cnt[i] <= 0;
+        end
+    end else if (rdy) begin
+        if (pre_br) begin 
+            if (pre_br_j) begin
+                if (pre_cnt[pre_idx] < 2'b11) begin
+                    pre_cnt[pre_idx] <= pre_cnt[pre_idx] + 1;
+                end
+            end else begin
+                if (pre_cnt[pre_idx] > 2'b00) begin
+                    pre_cnt[pre_idx] <= pre_cnt[pre_idx] - 1;
+                end
+            end
+        end
+    end
+end
+
+reg [`ADDR_WID] pre_pc;
+reg pre_j;
+
+wire [5:0] pre_pc_idx = pc[7:2];
+always @(*) begin
+    pre_pc = pc + 4;
+    pre_j = 0;
+    case (_inst[6:0]) 
+        `OPCODE_JAL: begin
+            pre_pc = pc + {{12{_inst[31]}}, _inst[19:12], _inst[20], _inst[30:21], 1'b0};
+            pre_j = 1;
+        end
+        `OPCODE_B: begin
+            if (pre_cnt[pre_pc_idx] >= 2'b10) begin 
+                pre_pc = {{20{_inst[31]}}, _inst[7], _inst[30:25], _inst[11:8], 1'b0};
+                pre_j = 1;
+            end
+        end
+    endcase
 end
 
 endmodule

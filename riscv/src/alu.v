@@ -23,7 +23,7 @@ module ALU(
 
     input wire rollback,
 
-    input wire rs_en,
+    input wire alu_en,
     input wire [6:0] opcode,
     input wire [2:0] funct3,
     input wire funct7,
@@ -37,7 +37,7 @@ module ALU(
     output reg [`ROB_WID] res_rob_pos,
     output reg [`DATA_WID] res_cal,
     output reg [`ADDR_WID] res_pc,
-    output reg res_cmp
+    output reg res_j
 );
 
 wire [`DATA_WID] lhs = val1;
@@ -79,13 +79,13 @@ always @(posedge clk) begin
         res_rob_pos <= 0;
         res_cal <= 0;
         res_pc <= 0;
-        res_cmp <= 0;
+        res_j <= 0;
     end else if (rdy) begin
         res_done <= 0;
         if (rs_en) begin
             res_done <= 1;
             res_rob_pos <= rob_pos;
-            res_cmp <= 0;
+            res_j <= 0;
             case (opcode)
                 `OPCODE_CAL: res_cal <= cal;
                 `OPCODE_CALI: res_cal <= cal;
@@ -93,16 +93,16 @@ always @(posedge clk) begin
                 `OPCODE_AUIPC: res_cal <= pc + imm;
                 `OPCODE_B:
                     if (cmp) begin
-                        res_cmp <= 1;
+                        res_j <= 1;
                         res_pc <= pc + imm;
                     end else res_pc <= pc + 4;
                 `OPCODE_JAL begin
-                    res_cmp <= 1;
+                    res_j <= 1;
                     res_cal <= pc + 4;
                     res_pc  <= pc + imm;
                 end
                 `OPCODE_JALR: begin
-                    res_cmp <= 1;
+                    res_j <= 1;
                     res_cal <= pc + 4;
                     res_pc  <= val1 + imm;
                 end

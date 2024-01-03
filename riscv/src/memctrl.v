@@ -16,7 +16,7 @@ module MemCtrl(
     input wire if_en,
     input wire [`ADDR_WID] if_pc,
     output reg if_done,
-    output wire [`CACHE_LINE_WID] if_data,
+    output wire [`ICACHE_LINE_WID] if_data,
 
     input wire lsb_en,
     output reg lsb_done
@@ -26,10 +26,10 @@ reg [1:0] status; //0: IDLE, 1: IF, 2: LOAD, 3: STORE
 reg [6:0] stage; // 2^6 = 64
 reg [6:0] len;
 
-reg [7:0] _if_data[`CACHE_LINE_SIZ - 1:0];
+reg [7:0] _if_data[`ICACHE_LINE_SIZ - 1:0];
 
 integer i;
-for (i = 0; i < `CACHE_LINE_SIZ; i = i + 1) begin
+for (i = 0; i < `ICACHE_LINE_SIZ; i = i + 1) begin
     assign if_data[i * 8 + 7:i * 8] = _if_data[i];
 end
 
@@ -40,12 +40,7 @@ always @(posedge clk) begin
         lsb_done <= 0;
         mem_a <= 0;
         mem_wr <= 0;
-    end else if (!rdy) begin
-        if_done <= 0;
-        lsb_done <= 0;
-        mem_a <= 0;
-        mem_wr <= 0;
-    end else begin
+    end else if (rdy) begin
         case(status)
             mem_wr <= 0;
             0: begin // IDLE
@@ -59,7 +54,7 @@ always @(posedge clk) begin
                         status <= 1;
                         mem_a <= if_pc;
                         pos <= 0;
-                        len <= `CACHE_LINE_SIZ;
+                        len <= `ICACHE_LINE_SIZ;
                     end
                 end
             end
@@ -83,6 +78,11 @@ always @(posedge clk) begin
                 // TODO
             end
         endcase
+    end else begin
+        if_done <= 0;
+        lsb_done <= 0;
+        mem_a <= 0;
+        mem_wr <= 0;
     end
 end
 

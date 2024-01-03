@@ -23,24 +23,25 @@ module ALU(
 
     input wire rollback,
 
-    input wire enable,
+    input wire rs_en,
     input wire [6:0] opcode,
     input wire [2:0] funct3,
     input wire funct7,
-    input wire [`WID32] val1,
-    input wire [`WID32] val2,
-    input wire [`WID32] imm,
-    input wire [`WIDROB] rob_pos,
+    input wire [`DATA_WID] val1,
+    input wire [`DATA_WID] val2,
+    input wire [`DATA_WID] imm,
+    input wire [`ROB_WID] rob_pos,
+    input wire [`ADDR_WID] pc,
 
-    output reg has_res,
-    output reg [`WIDROB] res_rob_pos,
-    output reg [`WID32] res_cal,
-    output reg [`WID32] res_pc,
+    output reg res_done,
+    output reg [`ROB_WID] res_rob_pos,
+    output reg [`DATA_WID] res_cal,
+    output reg [`ADDR_WID] res_pc,
     output reg res_cmp
 );
 
-wire [`WID32] lhs = val1;
-wire [`WID32] rhs = opcode == `OPCODE_CAL ? val2 : imm;
+wire [`DATA_WID] lhs = val1;
+wire [`DATA_WID] rhs = opcode == `OPCODE_CAL ? val2 : imm;
 reg cal;
 always @(*) begin
     case (funct3) 
@@ -74,22 +75,21 @@ end
 
 always @(posedge clk) begin
     if (rst || rollback) begin 
-        has_res <= 0;
+        res_done <= 0;
         res_rob_pos <= 0;
         res_cal <= 0;
         res_pc <= 0;
         res_cmp <= 0;
-    end else if (!rdy) begin 
-    end else begin 
-        has_res <= 0;
-        if (enable) begin
-            has_res <= 1;
+    end else if (rdy) begin
+        res_done <= 0;
+        if (rs_en) begin
+            res_done <= 1;
             res_rob_pos <= rob_pos;
             res_cmp <= 0;
             case (opcode)
                 `OPCODE_CAL: res_cal <= cal;
                 `OPCODE_CALI: res_cal <= cal;
-                `OPCODE_LUI:   res_cal <= imm;
+                `OPCODE_LUI: res_cal <= imm;
                 `OPCODE_AUIPC: res_cal <= pc + imm;
                 `OPCODE_B:
                     if (cmp) begin

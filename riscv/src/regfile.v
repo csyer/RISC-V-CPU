@@ -31,7 +31,7 @@ always @(posedge clk) begin
             pos[i] <= 4'b0;
         end
     end else if(rdy) begin
-
+        // TODO
     end
     if (rollback) begin
         for (i = 0; i < `REG_SIZ; i = i + 1) begin

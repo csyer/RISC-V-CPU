@@ -94,7 +94,7 @@ always @(posedge clk) begin
             0: begin // IDLE
                 if (!hit) begin
                     mem_en <= 1;
-                    mem_pc <= pc & 8'hFFFFFFC0;
+                    mem_pc <= pc & 32'hFFFFFFC0;
                     status <= 1;
                 end
             end
@@ -119,8 +119,8 @@ wire [5:0] pre_idx = pre_br_pc[6:2];
 integer j;
 always @(posedge clk) begin
     if (rst) begin
-        for (j = 0; j < `PRE_SIZ; i = i + 1) begin
-            pre_cnt[i] <= 0;
+        for (j = 0; j < `PRE_SIZ; j = j + 1) begin
+            pre_cnt[j] <= 0;
         end
     end else if (rdy) begin
         if (pre_br) begin 

@@ -10,34 +10,85 @@ module RegFile(
 
     input wire rollback,
 
-    input wire [`WIDREG] rs1,
-    output reg [`WID32] val1,
-    output reg [`WIDROB] rob_pos1,
-    input wire [`WIDREG] rs2,
-    output reg [`WID32] val2,
-    output reg [`WIDROB] rob_pos2
+    // from Decoder / query
+    input wire [`REG_WID] rs1,
+    output reg rs1_rdy,
+    output reg [`DATA_WID] val1,
+    output reg [`ROB_WID] rob_pos1,
+    input wire [`REG_WID] rs2,
+    output reg rs2_rdy,
+    output reg [`DATA_WID] val2,
+    output reg [`ROB_WID] rob_pos2,
+
+    // Decoder issue / add rely
+    input wire issue,
+    input wire [`REG_WID] issue_rs,
+    input wire [`ROB_WID] issue_rob_pos,
+
+    // RoB commit / remove rely
+    input wire commit,
+    input wire [`REG_WID] commit_rs,
+    input wire [`DATA_WID] commit_val,
+    input wire [`ROB_WID] commit_rob_pos
 );
 
-reg [`DATA_WID] r[0: `REG_SIZ - 1];
-reg is_rdy [0: `REG_SIZ - 1];
-reg [`ROB_WID] pos[0: `REG_SIZ - 1];
+reg is_rdy [`REG_SIZ - 1:0];
+reg [`DATA_WID] val[`REG_SIZ - 1:0];
+reg [`ROB_WID] rob_pos[`REG_SIZ - 1:0];
+
+wire valid_commit = commit && commit_rs != 0;
+wire upd = !is_rdy[commit_rs] && rob_pos[commit_rs] == commit_rob_pos;
 
 integer i;
 always @(posedge clk) begin
     if (rst) begin 
         for (i = 0; i < `REG_SIZ; i = i + 1) begin 
             val[i] <= 32'b0;
-            is_rdy[i] <= 1'b0;
-            pos[i] <= 4'b0;
+            is_rdy[i] <= 1'b1;
+            rob_pos[i] <= 4'b0;
         end
     end else if(rdy) begin
-        // TODO
+        // x0 恒为 0
+        if (commit && commit_rs != 0) begin
+            if (upd) begin
+                is_rdy[commit_rs] <= 1'b1;
+                val[commit_rs] <= commit_val;
+                rob_pos[commit_rs] <= 4'b0; 
+            end
+        end 
+        if (issue && issue_rs != 0) begin
+            is_rdy[issue_rs] <= 1'b0;
+            rob_pos[issue_rs] <= issue_rob_pos;
+        end
     end
     if (rollback) begin
         for (i = 0; i < `REG_SIZ; i = i + 1) begin
             is_rdy[i] <= 1'b0;
-            pos[i] <= 4'b0;
+            rob_pos[i] <= 4'b0;
         end
+    end
+end
+
+always @(*) begin
+    // a little forwarding ? 
+    if (valid_commit && rs1 == commit_rs && upd) begin
+        rs1_rdy = 1'b1;
+        val1 = commit_val;
+        rob_pos1 = 4'b0;
+    end else begin
+        rs1_rdy = is_rdy[rs1];
+        val1 = val[rs1];
+        rob_pos1 = rob_pos[rs1];
+    end
+
+    if (valid_commit && rs2 == commit_rs && upd) begin
+        rs2_rdy = 1'b1;
+        val2 = commit_val;
+        rob_pos2 = 4'b0;
+    end else begin
+        rs2_rdy = is_rdy[rs2];
+        val2 = val[rs2];
+        rob_pos2 = rob_pos[rs2];
     end
 end
 

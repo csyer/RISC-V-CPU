@@ -22,24 +22,24 @@ module Decoder(
     output wire [6:0] opcode,
     output wire [2:0] funct3,
     output wire funct7,
-    output reg rdy1,
-    output reg [`DATA_WID] val1,
-    output reg [`ROB_WID] pos1,
-    output reg rdy2,
-    output reg [`DATA_WID] val2,
-    output reg [`ROB_WID] pos2,
+    output reg rs1_rdy,
+    output reg [`DATA_WID] rs1_val,
+    output reg [`ROB_WID] rs1_rob_pos,
+    output reg rs2_rdy,
+    output reg [`DATA_WID] rs2_val,
+    output reg [`ROB_WID] rs2_rob_pos,
     output reg [`DATA_WID] imm,
     output reg [`REG_WID] rd,
 
     // query from RegFile
     output wire [`REG_WID] reg_rs1,
-    input wire reg_rdy1,
-    input wire [`DATA_WID] reg_val1,
-    input wire [`ROB_WID] reg_pos1,
+    input wire reg_rs1_rdy,
+    input wire [`DATA_WID] reg_rs1_val,
+    input wire [`ROB_WID] reg_rs1_pos,
     output wire [`REG_WID] reg_rs2,
-    input wire reg_rdy2,
-    input wire [`DATA_WID] reg_val2,
-    input wire [`ROB_WID] reg_pos2
+    input wire reg_rs2_rdy,
+    input wire [`DATA_WID] reg_rs2_val,
+    input wire [`ROB_WID] reg_rs2_pos
 );
 
 assign reg_rs1 = inst[19:15];

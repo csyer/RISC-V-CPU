@@ -13,12 +13,13 @@ module RegFile(
     // from Decoder / query
     input wire [`REG_WID] rs1,
     output reg rs1_rdy,
-    output reg [`DATA_WID] val1,
-    output reg [`ROB_WID] rob_pos1,
+    output reg [`DATA_WID] rs1_val,
+    output reg [`ROB_WID] rs1_rob_pos,
+    
     input wire [`REG_WID] rs2,
     output reg rs2_rdy,
-    output reg [`DATA_WID] val2,
-    output reg [`ROB_WID] rob_pos2,
+    output reg [`DATA_WID] rs2_val,
+    output reg [`ROB_WID] rs2_rob_pos,
 
     // Decoder issue / add rely
     input wire issue,
@@ -73,22 +74,22 @@ always @(*) begin
     // a little forwarding ? 
     if (valid_commit && rs1 == commit_rs && upd) begin
         rs1_rdy = 1'b1;
-        val1 = commit_val;
-        rob_pos1 = 4'b0;
+        rs1_val = commit_val;
+        rs1_rob_pos = 4'b0;
     end else begin
         rs1_rdy = is_rdy[rs1];
-        val1 = val[rs1];
-        rob_pos1 = rob_pos[rs1];
+        rs1_val = val[rs1];
+        rs1_rob_pos = rob_pos[rs1];
     end
 
     if (valid_commit && rs2 == commit_rs && upd) begin
         rs2_rdy = 1'b1;
-        val2 = commit_val;
-        rob_pos2 = 4'b0;
+        rs2_val = commit_val;
+        rs2_rob_pos = 4'b0;
     end else begin
         rs2_rdy = is_rdy[rs2];
-        val2 = val[rs2];
-        rob_pos2 = rob_pos[rs2];
+        rs2_val = val[rs2];
+        rs2_rob_pos = rob_pos[rs2];
     end
 end
 

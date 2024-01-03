@@ -34,17 +34,23 @@ module IFetch(
     input wire mem_done,
     input wire [`ICACHE_LINE_WID] mem_data,
 
+    // now
     output reg inst_done,
     output reg [`INST_WID] inst,
     output reg [`ADDR_WID] inst_pc,
+    output reg inst_pre_j,
 
-    input wire pre_br,
-    input wire pre_br_j, // is jump
-    input wire [`ADDR_WID] pre_br_pc
+    // when RoB commit
+    input wire br_pre,
+    input wire br_pre_j, // is jump
+    input wire [`ADDR_WID] br_pre_pc
 )
 
 reg status; // 0: IDLE, 1: FETCH
 reg [`ADDR_WID] pc;
+
+reg [`ADDR_WID] pre_pc; // 预测当前指令是否跳转
+reg pre_j;
 
 // 1KB ICACHE
 reg valid[`ICACHE_LINE_NUM - 1:0];
@@ -78,6 +84,8 @@ always @(posedge clk) begin
             inst_done <= 1;
             inst <= _inst;
             inst_pc <= pc;
+            pc <= pre_pc;
+            inst_pre_j <= pre_j;
         end else begin
             inst_done <= 0;
         end
@@ -106,7 +114,7 @@ end
 // Predictor
 `define PRE_SIZ 64  // 2^6
 reg [1:0] pre_cnt[`PRE_SIZ - 1:0];
-wire [5:0] pre_idx = pre_br_pc[7:2];
+wire [5:0] pre_idx = pre_br_pc[6:2];
 
 integer j;
 always @(posedge clk) begin
@@ -129,13 +137,12 @@ always @(posedge clk) begin
     end
 end
 
-reg [`ADDR_WID] pre_pc;
-reg pre_j;
-
-wire [5:0] pre_pc_idx = pc[7:2];
+wire [5:0] pre_pc_idx = pc[6:2];
 always @(*) begin
     pre_pc = pc + 4;
     pre_j = 0;
+    // 偷个懒。。遇到 JALR 就直接认为不跳好了
+    // 反正在 JALR ready 之前要 stall，感觉差不多。。
     case (_inst[6:0]) 
         `OPCODE_JAL: begin
             pre_pc = pc + {{12{_inst[31]}}, _inst[19:12], _inst[20], _inst[30:21], 1'b0};

@@ -10,28 +10,47 @@ module Decoder(
 
     input wire rollback,
 
+    // fetch from IFetch
     input wire inst_done,
     input wire [`INST_WID] inst,
     input wire [`ADDR_WID] inst_pc,
+    input wire pre_j,
 
+    // issue
+    output reg done,
+    output reg [`ROB_WID] rob_pos,
     output wire [6:0] opcode,
     output wire [2:0] funct3,
     output wire funct7,
+    output reg rdy1,
+    output reg [`DATA_WID] val1,
+    output reg [`ROB_WID] pos1,
+    output reg rdy2,
+    output reg [`DATA_WID] val2,
+    output reg [`ROB_WID] pos2,
+    output reg [`DATA_WID] imm,
+    output reg [`REG_WID] rd,
 
+    // query from RegFile
     output wire [`REG_WID] reg_rs1,
-    input wire [`DATA_WID] reg_rs1_v,
-    input wire [`ROB_WID] reg_rs1_q,
+    input wire reg_rdy1,
+    input wire [`DATA_WID] reg_val1,
+    input wire [`ROB_WID] reg_pos1,
     output wire [`REG_WID] reg_rs2,
-    input wire [`DATA_WID] reg_rs2_v,
-    input wire [`ROB_WID] reg_rs2_q
-
-    output reg done,
+    input wire reg_rdy2,
+    input wire [`DATA_WID] reg_val2,
+    input wire [`ROB_WID] reg_pos2
 );
+
+assign reg_rs1 = inst[19:15];
+assign reg_rs2 = inst[24:20];
 
 always @(*) begin
     opcode = inst[6:0];
     funct3 = inst[14:12];
     funct7 = inst[30];
+    rd = inst[11:7];
+    imm = 0;
 
     if (rst) begin
         // TODO

@@ -30,15 +30,102 @@ module cpu(
 // - 0x30004 read: read clocks passed since cpu starts (in dword, 4 bytes)
 // - 0x30004 write: indicates program stop (will output '\0' through uart tx)
 
+wire rollback;
+
 MemCtrl mem_ctrl(
     .clk(clk_in),
     .rst(rst_in),
     .rdy(rdy_in),
+
     .rollback(rollback),
+
     .mem_din(mem_din),
     .mem_dout(mem_dout),
     .mem_a(mem_a),
-    .mem_wr(mem_wr)
+    .mem_wr(mem_wr),
+
+    .if_en(),
+    .if_pc(),
+    .if_done(),
+    .if_data(),
+
+    .lsb_en(),
+    .lsb_done()
+);
+
+IFetch(
+    .clk,
+    .rst,
+    .rdy,
+
+    .rollback,
+
+    .rs_full,
+    .lsb_full,
+    .rob_full,
+
+    .mem_en,
+    .mem_pc,
+    .mem_done,
+    .mem_data,
+
+    // now
+    .inst_done,
+    .inst,
+    .inst_pc,
+    .inst_pre_j,
+
+    // when RoB commit
+    .br_pre,
+    .br_pre_j, // is jump
+    .br_pre_pc,
+    .br_res_pc
+)
+
+Decoder decoder(
+    .clk(clk_in),
+    .rst(rst_in),
+    .rdy(rdy_in),
+
+    .rollback(rollback),
+
+    // fetch from IFetch
+    .inst_done,
+    .inst,
+    .inst_pc,
+    .inst_pre_j,
+
+    // issue
+    .done,
+    .rob_pos,
+    .opcode,
+    .funct3,
+    .funct7,
+    .rs1_rdy,
+    .rs1_val,
+    .rs1_rob_pos,
+    .rs2_rdy,
+    .rs2_val,
+    .rs2_rob_pos,
+    .imm,
+    .rd,
+    .pc,
+    .pre_j,
+
+    // query from RegFile
+    .reg_rs1,
+    .reg_rs1_rdy,
+    .reg_rs1_val,
+    .reg_rs1_rob_pos,
+    .reg_rs2,
+    .reg_rs2_rdy,
+    .reg_rs2_val,
+    .reg_rs2_rob_pos,
+
+    .rs_en,
+    .lsb_en,
+
+    .is_ready
 );
 
 endmodule

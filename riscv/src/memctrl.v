@@ -1,6 +1,8 @@
 `ifndef MEM_CTRL
 `define MEM_CTRL
 
+`include "def.v"
+
 module MemCtrl(
     input wire clk,
     input wire rst,
@@ -19,7 +21,14 @@ module MemCtrl(
     output wire [`ICACHE_LINE_WID] if_data,
 
     input wire lsb_en,
-    output reg lsb_done
+    input wire lsb_wr,
+    input wire lsb_a,
+    input wire lsb_l,
+    input wire lsb_w,
+    output reg lsb_r,
+    output reg lsb_done,
+
+    input wire io_buffer_full
 );
 
 reg [1:0] status; //0: IDLE, 1: IF, 2: LOAD, 3: STORE
@@ -27,6 +36,8 @@ reg [6:0] stage; // 2^6 = 64
 reg [6:0] len;
 
 reg [7:0] _if_data[`ICACHE_LINE_SIZ - 1:0];
+
+reg [`ADDR_WID] store_a;
 
 genvar i;
 generate
@@ -51,7 +62,14 @@ always @(posedge clk) begin
                     lsb_done <= 0;
                 end else if (!rollback) begin
                     if (lsb_en) begin
-                        // TODO
+                        if (lsb_wr) begin // write / Store
+                            status <= 3; 
+                            store_a <= lsb_a;
+                        end else begin // read / Load
+                            status <= 2;
+                            mem_a <= lsb_a;
+                            lsb_r <= 0;
+                        end
                     end else if (if_en) begin
                         status <= 1;
                         mem_a <= if_pc;
@@ -71,15 +89,44 @@ always @(posedge clk) begin
                     mem_a <= 0;
                     stage <= 0;
                     status <= 0;
-                end else begin
-                    stage <= stage + 1;
-                end
+                end else stage <= stage + 1;
             end
             2: begin // LOAD
-                // TODO
+                if (rollback) begin
+                    status <= 0;
+                    lsb_done <= 0;
+                    mem_wr <= 0;
+                    mem_a <= 0;
+                    stage <= 0;
+                end else begin
+                    // stage 从 1 开始，迟一个周期
+                    if (stage != 0) begin
+                        lsb_r[stage * 8 - 1:(stage - 1) * 8] <= mem_din;
+                    end
+                    if (stage + 1 == len) mem_a <= 0;
+                    else mem_a = mem_a + 1;
+                    if (stage == len) begin
+                        status <= 0;
+                        lsb_done <= 1;
+                        mem_wr <= 0;
+                        mem_a <= 0;
+                        stage <= 0;
+                    end else stage <= stage + 1;
+                end
             end
             3: begin // STORE
-                // TODO
+                if (!(store_a[17:16] == 2'b11 && io_buffer_full)) begin
+                    mem_wr <= 1;
+                    mem_dout <= lsb_w[stage * 8 + 7:stage * 8];
+                    if (stage == 0) mem_a <= store_a;
+                    else mem_a = mem_a + 1;
+                    if (stage == len) begin
+                        status <= 0;
+                        lsb_done <= 0;
+                        mem_a <= 0;
+                        stage <= 0;
+                    end else stage = stage + 1;
+                end
             end
         endcase
     end else begin

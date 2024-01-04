@@ -45,7 +45,7 @@ module IFetch(
     input wire br_pre_j, // is jump
     input wire [`ADDR_WID] br_pre_pc,
     input wire [`ADDR_WID] br_res_pc
-)
+);
 
 reg status; // 0: IDLE, 1: FETCH
 reg [`ADDR_WID] pc;
@@ -67,7 +67,15 @@ wire [`ICACHE_TAG_WID] mem_pc_tag = mem_pc[`ICACHE_TAG];
 wire [`ICACHE_IDX_WID] mem_pc_idx = mem_pc[`ICACHE_IDX];
 
 wire [`ICACHE_LINE_WID] line = data[pc_idx];
-wire [`INST_WID] _inst = line[(pc_bs + 1) * 32 - 1:pc_bs * 32];
+wire [`INST_WID] insts[`ICACHE_INST_NUM - 1:0];
+wire [`INST_WID] _inst = insts[pc_bs];
+
+genvar k;
+generate
+    for (k = 0; k < `ICACHE_INST_NUM; k = k + 1) begin
+        assign insts[k] = line[k * 32 + 31:k * 32];
+    end
+endgenerate
 
 integer i;
 always @(posedge clk) begin

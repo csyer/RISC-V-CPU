@@ -8,14 +8,14 @@ module RoB(
     input wire rst,
     input wire rdy,
 
-    output wire rollback,
+    output reg rollback,
 
     output wire rob_full,
 
-    output wire rob_head_pos,
+    output wire [`ROB_WID] rob_head_pos,
 
     input wire issue,
-    input wire [`ADDR_SIZ] issue_pc,
+    input wire [`ADDR_WID] issue_pc,
     input wire [6:0] issue_opcode,
     input wire [`REG_WID] issue_rd,
     input wire issue_pre_j,
@@ -32,8 +32,9 @@ module RoB(
     output reg [`ADDR_WID] commit_res_pc,
 
     // commit to LSB
-    output lsb_store,
-    output [`ROB_WID] commit_rob_pos,
+    output reg lsb_store,
+
+    output reg [`ROB_WID] commit_rob_pos,
 
     input wire alu_done,
     input wire [`DATA_WID] alu_res,
@@ -70,9 +71,26 @@ assign rob_full = nxt_head == nxt_tail && !nxt_empty;
 
 assign rob_head_pos = head;
 
+integer i;
 always @(posedge clk) begin
     if (rst || rollback) begin
-        // TODO
+        head <= 0;
+        tail <= 0;
+        is_empty <= 0;
+        rollback <= 0;
+        commit_br <= 0;
+        lsb_store <= 0;
+        commit_reg <= 0;
+        for (i = 0; i < `ROB_SIZ; i = i + 1) begin
+            ready[i] <= 0;
+            pc[i] <= 0;
+            opcode[i] <= 0;
+            rd[i] <= 0;
+            val[i] <= 0;
+            res_j[i] <= 0;
+            res_pc[i] <= 0;
+            pre_j[i] <= 0;
+        end
     end else if (rdy) begin
         if (issue) begin
             if (issue_opcode == `OPCODE_S) ready[tail] <= 1;
@@ -108,7 +126,7 @@ always @(posedge clk) begin
                     commit_br <= 1;
                     commit_br_j <= res_j[head];
                     commit_br_pc <= pc[head];
-                    if (pre_j[head] != real_j[head]) begin
+                    if (pre_j[head] != res_j[head]) begin
                         rollback <= 1;
                         commit_res_pc <= res_pc[head];
                     end
@@ -132,3 +150,5 @@ always @(posedge clk) begin
 end
 
 endmodule
+
+`endif

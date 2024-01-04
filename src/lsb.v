@@ -92,8 +92,8 @@ wire input_en = head_io && rob_pos[head] == rob_head_pos;
 
 wire pop = status && mem_done;
 wire [`LSB_WID] nxt_head = head + pop;
-wire [`LSB_WID] nxt_tail = tail + issue;
-wire nxt_empty = nxt_head == nxt_tail && (is_empty || pop && !issue)
+wire [`LSB_WID] nxt_tail = tail + lsb_en;
+wire nxt_empty = nxt_head == nxt_tail && (is_empty || pop && !lsb_en);
 
 assign lsb_full = nxt_head == nxt_tail && !nxt_empty;
 

@@ -72,7 +72,7 @@ always @(*) begin
             if (i != free_pos || !rs_en) rs_full = 0;
             free_pos = i;
         end
-        if (busy[i] && rs_rs1_rdy[i] && rs_rs2_rdy[i]) begin
+        if (busy[i] && rs1_rdy[i] && rs2_rdy[i]) begin
             ready[i] = 1;
             ready_pos = i;
         end else ready[i] = 0;

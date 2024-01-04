@@ -82,8 +82,6 @@ always @(*) begin
     pc = inst_pc;
     pre_j = inst_pre_j;
 
-    is_ready = 0;
-
     issue = 0;
     rs1_rdy = 1;
     rs1_val = 0;
@@ -196,3 +194,5 @@ always @(*) begin
 end
 
 endmodule
+
+`endif

@@ -46,19 +46,22 @@ module ALU(
 
 wire [`DATA_WID] lhs = val1;
 wire [`DATA_WID] rhs = opcode == `OPCODE_CAL ? val2 : imm;
-reg cal;
+reg [`DATA_WID] cal;
 always @(*) begin
     case (funct3) 
-        `FUNCT3_ADD
-            if (funct7 && opcode == `OPCODE_CAL) cal = lhs - rhs
-            else cal = lhs + rhs
+        `FUNCT3_ADD: begin
+            if (funct7 && opcode == `OPCODE_CAL) 
+                cal = lhs - rhs;
+            else cal = lhs + rhs;
+        end
         `FUNCT3_XOR: cal = lhs ^ rhs;
         `FUNCT3_OR: cal = lhs | rhs;
         `FUNCT3_AND: cal = lhs & rhs;
         `FUNCT3_SLL: cal = lhs << rhs;
-        `FUNCT3_SRL:
+        `FUNCT3_SRL: begin
             if (funct7) cal = $signed(lhs) >> rhs[5:0];
             else cal = lhs >> rhs[5:0];
+        end
         `FUNCT3_SLT: cal = ($signed(lhs) < $signed(rhs));
         `FUNCT3_SLTU: cal = (lhs < rhs);
     endcase
@@ -86,7 +89,7 @@ always @(posedge clk) begin
         res_j <= 0;
     end else if (rdy) begin
         res_done <= 0;
-        if (rs_en) begin
+        if (alu_en) begin
             res_done <= 1;
             res_rob_pos <= rob_pos;
             res_j <= 0;
@@ -100,7 +103,7 @@ always @(posedge clk) begin
                         res_j <= 1;
                         res_pc <= pc + imm;
                     end else res_pc <= pc + 4;
-                `OPCODE_JAL begin
+                `OPCODE_JAL: begin
                     res_j <= 1;
                     res_cal <= pc + 4;
                     res_pc  <= pc + imm;

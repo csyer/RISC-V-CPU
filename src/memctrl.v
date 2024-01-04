@@ -35,13 +35,13 @@ reg [1:0] status; //0: IDLE, 1: IF, 2: LOAD, 3: STORE
 reg [6:0] stage; // 2^6 = 64
 reg [6:0] len;
 
-reg [7:0] _if_data[`ICACHE_LINE_SIZ - 1:0];
+reg [7:0] _if_data[`ICACHE_LINE_NUM - 1:0];
 
 reg [`ADDR_WID] store_a;
 
 genvar i;
 generate
-    for (i = 0; i < `ICACHE_LINE_SIZ; i = i + 1) begin
+    for (i = 0; i < `ICACHE_LINE_NUM; i = i + 1) begin
         assign if_data[i * 8 + 7:i * 8] = _if_data[i];
     end
 endgenerate
@@ -54,8 +54,8 @@ always @(posedge clk) begin
         mem_a <= 0;
         mem_wr <= 0;
     end else if (rdy) begin
+        mem_wr <= 0;
         case(status)
-            mem_wr <= 0;
             0: begin // IDLE
                 if (if_done || lsb_done) begin
                     if_done <= 0;
@@ -74,7 +74,7 @@ always @(posedge clk) begin
                         status <= 1;
                         mem_a <= if_pc;
                         stage <= 0;
-                        len <= `ICACHE_LINE_SIZ;
+                        len <= `ICACHE_LINE_NUM;
                     end
                 end
             end
@@ -101,7 +101,12 @@ always @(posedge clk) begin
                 end else begin
                     // stage 从 1 开始，迟一个周期
                     if (stage != 0) begin
-                        lsb_r[stage * 8 - 1:(stage - 1) * 8] <= mem_din;
+                        case (stage)
+                            1: lsb_r[7:0] <= mem_din;
+                            2: lsb_r[15:8] <= mem_din;
+                            3: lsb_r[23:16] <= mem_din;
+                            4: lsb_r[31:24] <= mem_din;
+                        endcase
                     end
                     if (stage + 1 == len) mem_a <= 0;
                     else mem_a = mem_a + 1;
@@ -117,7 +122,12 @@ always @(posedge clk) begin
             3: begin // STORE
                 if (!(store_a[17:16] == 2'b11 && io_buffer_full)) begin
                     mem_wr <= 1;
-                    mem_dout <= lsb_w[stage * 8 + 7:stage * 8];
+                    case (stage)
+                        0: mem_dout <= lsb_w[7:0];
+                        1: mem_dout <= lsb_w[15:8];
+                        2: mem_dout <= lsb_w[23:16];
+                        3: mem_dout <= lsb_w[31:24];
+                    endcase
                     if (stage == 0) mem_a <= store_a;
                     else mem_a = mem_a + 1;
                     if (stage == len) begin

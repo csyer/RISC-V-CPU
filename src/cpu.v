@@ -86,11 +86,6 @@ MemCtrl mem_ctrl(
     .io_buffer_full(io_buffer_full)
 );
 
-wire if_to_mem_en;
-wire [`ADDR_WID] if_to_mem_pc;
-wire mem_to_if_done;
-wire [`DATA_WID] mem_to_if_data;
-
 wire if_to_dec_done;
 wire [`INST_WID] if_to_dec_inst;
 wire [`ADDR_WID] if_to_dec_pc;
@@ -126,7 +121,7 @@ IFetch ifetch(
     .br_pre_j(rob_to_if_br_j),
     .br_pre_pc(rob_to_if_br_pre_pc),
     .br_res_pc(rob_to_if_br_res_pc)
-)
+);
 
 wire [`REG_WID] dec_to_reg_rs1;
 wire reg_to_dec_rs1_rdy;
@@ -177,7 +172,7 @@ wire [2:0] issue_funct3;
 wire issue_funct7;
 wire issue_rs1_rdy;
 wire [`DATA_WID] issue_rs1_val;
-wire [`ROB_WID] issue_rs1_rob_pos,
+wire [`ROB_WID] issue_rs1_rob_pos;
 wire issue_rs2_rdy;
 wire [`DATA_WID] issue_rs2_val;
 wire [`ROB_WID] issue_rs2_rob_pos;
@@ -193,11 +188,11 @@ wire alu_done;
 wire [`DATA_WID] alu_res;
 wire alu_res_j;
 wire [`ADDR_WID] alu_res_pc;
-wire [`ROB_WID] alu_rob_pos;
+wire [`ROB_WID] alu_res_rob_pos;
 
 wire lsb_done;
 wire [`DATA_WID] lsb_res;
-wire [`ROB_WID] lsb_rob_pos;
+wire [`ROB_WID] lsb_res_rob_pos;
 
 wire [`ROB_WID]  dec_to_rob_rs1_pos;
 wire rob_to_dec_rs1_rdy;
@@ -207,6 +202,8 @@ wire rob_to_dec_rs2_rdy;
 wire [`DATA_WID] rob_to_dec_rs2_val;
 
 wire [`ROB_WID] rob_to_dec_upd_pos;
+
+wire [`ROB_WID] upd_rob_pos;
 
 Decoder decoder(
     .clk(clk_in),
@@ -251,11 +248,11 @@ Decoder decoder(
 
     .alu_done(alu_done),
     .alu_res(alu_res),
-    .alu_res_rob_pos(alu_rob_pos),
+    .alu_res_rob_pos(alu_res_rob_pos),
 
     .lsb_done(lsb_done),
     .lsb_res(lsb_res),
-    .lsb_res_rob_pos(lsb_rob_pos),
+    .lsb_res_rob_pos(lsb_res_rob_pos),
 
     .rob_rs1_pos(dec_to_rob_rs1_pos),
     .rob_rs1_rdy(rob_to_dec_rs1_rdy),
@@ -295,7 +292,7 @@ ALU alu(
     .pc(rs_to_alu_pc),
 
     .res_done(alu_done),
-    .res_rob_pos(alu_rob_pos),
+    .res_rob_pos(alu_res_rob_pos),
     .res_cal(alu_res),
     .res_pc(alu_res_pc),
     .res_j(alu_res_j)
@@ -335,7 +332,7 @@ RS rs(
 
     .alu_done(alu_done),
     .alu_res(alu_res),
-    .alu_rob_pos(alu_rob_pos)
+    .alu_res_rob_pos(alu_res_rob_pos)
 );
 
 wire rob_to_lsb_commit_store;
@@ -373,7 +370,7 @@ LSB lsb(
 
     .done(lsb_done),
     .res(lsb_res),
-    .res_rob_pos(lsb_rob_pos),
+    .res_rob_pos(lsb_res_rob_pos),
 
     .alu_done(alu_done),
     .alu_res(alu_res),
@@ -381,7 +378,7 @@ LSB lsb(
 
     .lsb_done(lsb_done),
     .lsb_res(lsb_res),
-    .lsb_rob_pos(lsb_rob_pos),
+    .lsb_res_rob_pos(lsb_res_rob_pos),
 
     .commit_store(rob_to_lsb_commit_store),
 

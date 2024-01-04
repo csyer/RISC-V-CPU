@@ -32,6 +32,7 @@ module Decoder(
     output reg [`REG_WID] rd,
     output reg [`ADDR_WID] pc,
     output reg pre_j,
+    output reg is_store,
 
     // query from RegFile
     output wire [`REG_WID] reg_rs1,
@@ -77,6 +78,7 @@ always @(*) begin
     funct7 = inst[30];
     rd = inst[11:7];
     imm = 0;
+    is_store = 0;
     pc = inst_pc;
     pre_j = inst_pre_j;
 
@@ -132,6 +134,7 @@ always @(*) begin
                 imm = {{21{inst[31]}}, inst[30:20]};
             end
             `OPCODE_S: begin
+                is_store = 1;
                 lsb_en = 1;
                 rd = 0;
                 imm = {{21{inst[31]}}, inst[30:20]};

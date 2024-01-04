@@ -43,8 +43,8 @@ module LSB(
     output reg [`ADDR_WID] mem_a,
     output reg [2:0] mem_l,
     output reg [`DATA_WID] mem_w,
+    input wire [`DATA_WID] mem_r,
     input wire mem_done,
-    input wire mem_r,
 
     output reg done,
     output reg [`DATA_WID] res,

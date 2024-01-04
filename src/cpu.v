@@ -2,6 +2,13 @@
 // port modification allowed for debugging purposes
 
 `include "memctrl.v"
+`include "ifetch.v"
+`include "regfile.v"
+`include "decoder.v"
+`include "alu.v"
+`include "rs.v"
+`include "lsb.v"
+`include "rob.v"
 
 module cpu(
     input  wire                 clk_in,			// system clock signal
@@ -35,6 +42,8 @@ wire rollback;
 wire rs_full;
 wire lsb_full;
 wire rob_full;
+
+wire [`ROB_WID] rob_commit_pos;
 
 wire if_to_mem_en;
 wire [`ADDR_WID] if_to_mem_pc;
@@ -160,7 +169,7 @@ RegFile reg_file(
     .commit(rob_to_reg_commit),
     .commit_rd(rob_to_reg_rd),
     .commit_val(rob_to_reg_val),
-    .commit_rob_pos(rob_to_reg_pos)
+    .commit_rob_pos(rob_commit_pos)
 );
 
 wire [6:0] issue_opcode;
@@ -175,17 +184,20 @@ wire [`ROB_WID] issue_rs2_rob_pos;
 wire [`DATA_WID] issue_imm;
 wire [`ADDR_WID] issue_pc;
 wire issue_pre_j;
+wire issue_ls;
 
 wire dec_to_rs_en;
 wire dec_to_lsb_en;
 
-wire alu_to_dec_done;
-wire [`DATA_WID] alu_to_dec_res;
-wire [`ROB_WID] alu_to_dec_rob_pos;
+wire alu_done;
+wire [`DATA_WID] alu_res;
+wire alu_res_j;
+wire [`ADDR_WID] alu_res_pc;
+wire [`ROB_WID] alu_rob_pos;
 
-wire lsb_to_dec_done;
-wire [`DATA_WID] lsb_to_dec_res;
-wire [`ROB_WID] lsb_to_dec_rob_pos;
+wire lsb_done;
+wire [`DATA_WID] lsb_res;
+wire [`ROB_WID] lsb_rob_pos;
 
 wire [`ROB_WID]  dec_to_rob_rs1_pos;
 wire rob_to_dec_rs1_rdy;
@@ -223,6 +235,7 @@ Decoder decoder(
     .rd(issue_rd),
     .pc(issue_pc),
     .pre_j(issue_pre_j),
+    .is_store(issue_is_store),
 
     .reg_rs1(dec_to_reg_rs1),
     .reg_rs1_rdy(reg_to_dec_rs1_rdy),
@@ -236,13 +249,13 @@ Decoder decoder(
     .rs_en(dec_to_rs_en),
     .lsb_en(dec_to_lsb_en),
 
-    .alu_done(alu_to_dec_done),
-    .alu_res(alu_to_dec_res),
-    .alu_res_rob_pos(alu_to_dec_rob_pos),
+    .alu_done(alu_done),
+    .alu_res(alu_res),
+    .alu_res_rob_pos(alu_rob_pos),
 
-    .lsb_done(lsb_to_dec_done),
-    .lsb_res(lsb_to_dec_res),
-    .lsb_res_rob_pos(lsb_to_dec_rob_pos),
+    .lsb_done(lsb_done),
+    .lsb_res(lsb_res),
+    .lsb_res_rob_pos(lsb_rob_pos),
 
     .rob_rs1_pos(dec_to_rob_rs1_pos),
     .rob_rs1_rdy(rob_to_dec_rs1_rdy),
@@ -252,6 +265,170 @@ Decoder decoder(
     .rob_rs2_val(rob_to_dec_rs2_val),
 
     .upd_rob_pos(rob_to_dec_upd_pos)
+);
+
+wire rs_to_alu_en;
+wire [6:0] rs_to_alu_opcode;
+wire [2:0] rs_to_alu_funct3;
+wire rs_to_alu_funct7;
+wire [`DATA_WID] rs_to_alu_val1;
+wire [`DATA_WID] rs_to_alu_val2;
+wire [`DATA_WID] rs_to_alu_imm;
+wire [`ROB_WID] rs_to_alu_pos;
+wire [`ADDR_WID] rs_to_alu_pc;
+
+ALU alu(
+    .clk(clk_in),
+    .rst(rst_in),
+    .rdy(rdy_in),
+
+    .rollback(rollback),
+
+    .alu_en(rs_to_alu_en),
+    .opcode(rs_to_alu_opcode),
+    .funct3(rs_to_alu_funct3),
+    .funct7(rs_to_alu_funct7),
+    .val1(rs_to_alu_val1),
+    .val2(rs_to_alu_val2),
+    .imm(rs_to_alu_imm),
+    .rob_pos(rs_to_alu_pos),
+    .pc(rs_to_alu_pc),
+
+    .res_done(alu_done),
+    .res_rob_pos(alu_rob_pos),
+    .res_cal(alu_res),
+    .res_pc(alu_res_pc),
+    .res_j(alu_res_j)
+);
+
+RS rs(
+    .clk(clk_in),
+    .rst(rst_in),
+    .rdy(rdy_in),
+
+    .rollback(rollback),
+
+    .rs_full(rs_full),
+
+    .rs_en(dec_to_rs_en),
+    .rs_rob_pos(issue_rob_pos),
+    .rs_opcode(issue_opcode),
+    .rs_funct3(issue_funct3),
+    .rs_funct7(issue_funct7),
+    .rs_rs1_rdy(issue_rs1_rdy),
+    .rs_rs1_val(issue_rs1_val),
+    .rs_rs1_rob_pos(issue_rs1_rob_pos),
+    .rs_rs2_rdy(issue_rs2_rdy),
+    .rs_rs2_val(issue_rs2_val),
+    .rs_rs2_rob_pos(issue_rs2_rob_pos),
+    .rs_imm(issue_imm),
+    .rs_pc(issue_pc),
+
+    .alu_en(rs_to_alu_en),
+    .alu_rob_pos(rs_to_alu_pos),
+    .alu_opcode(rs_to_alu_opcode),
+    .alu_funct3(rs_to_alu_funct3),
+    .alu_funct7(rs_to_alu_funct7),
+    .alu_val1(rs_to_alu_val1),
+    .alu_val2(rs_to_alu_val2),
+    .alu_imm(rs_to_alu_imm),
+
+    .alu_done(alu_done),
+    .alu_res(alu_res),
+    .alu_rob_pos(alu_rob_pos)
+);
+
+wire rob_to_lsb_commit_store;
+
+wire [`ROB_WID] rob_head_pos;
+
+LSB lsb(
+    .clk(clk_in),
+    .rst(rst_in),
+    .rdy(rdy_in),
+
+    .rollback(rollback),
+
+    .lsb_full(lsb_full),
+
+    .lsb_en(dec_to_lsb_en),
+    .lsb_rob_pos(issue_rob_pos),
+    .lsb_ls(issue_is_store),
+    .lsb_funct3(issue_funct3),
+    .lsb_rs1_rdy(issue_rs1_rdy),
+    .lsb_rs1_val(issue_rs1_val),
+    .lsb_rs1_rob_pos(issue_rs1_rob_pos),
+    .lsb_rs2_rdy(issue_rs2_rdy),
+    .lsb_rs2_val(issue_rs2_val),
+    .lsb_rs2_rob_pos(issue_rs2_rob_pos),
+    .lsb_imm(issue_imm),
+
+    .mem_en(lsb_to_mem_en),
+    .mem_wr(lsb_to_mem_wr),
+    .mem_a(lsb_to_mem_a),
+    .mem_l(lsb_to_mem_l),
+    .mem_w(lsb_to_mem_w),
+    .mem_r(mem_to_lsb_r),
+    .mem_done(mem_to_lsb_done),
+
+    .done(lsb_done),
+    .res(lsb_res),
+    .res_rob_pos(lsb_rob_pos),
+
+    .alu_done(alu_done),
+    .alu_res(alu_res),
+    .alu_res_rob_pos(alu_res_rob_pos),
+
+    .lsb_done(lsb_done),
+    .lsb_res(lsb_res),
+    .lsb_rob_pos(lsb_rob_pos),
+
+    .commit_store(rob_to_lsb_commit_store),
+
+    .commit_rob_pos(rob_commit_pos),
+    .rob_head_pos(rob_head_pos)
+);
+
+RoB rob(
+    .clk(clk_in),
+    .rst(rst_in),
+    .rdy(rdy_in),
+
+    .rollback(rollback),
+
+    .rob_full(rob_full),
+
+    .rob_head_pos(rob_head_pos),
+
+    .issue(issue),
+    .issue_pc(issue_pc),
+    .issue_opcode(issue_opcode),
+    .issue_rd(issue_rd),
+    .issue_pre_j(issue_pre_j),
+
+    .commit_reg(rob_to_reg_commit),
+    .commit_reg_rd(rob_to_reg_rd),
+    .commit_reg_val(rob_to_reg_val),
+
+    .commit_br(rob_to_if_br),
+    .commit_br_j(rob_to_if_br_j),
+    .commit_br_pc(rob_to_if_br_pre_pc),
+    .commit_res_pc(rob_to_if_br_res_pc),
+
+    .lsb_store(rob_to_lsb_commit_store),
+    .commit_rob_pos(rob_commit_pos),
+
+    .alu_done(alu_done),
+    .alu_res(alu_res),
+    .alu_res_j(alu_res_j),
+    .alu_res_pc(alu_res_pc),
+    .alu_res_rob_pos(alu_res_rob_pos),
+
+    .lsb_done(lsb_done),
+    .lsb_res(lsb_res),
+    .lsb_res_rob_pos(lsb_res_rob_pos),
+
+    .upd_rob_pos(upd_rob_pos)
 );
 
 endmodule

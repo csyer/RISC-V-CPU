@@ -8,9 +8,11 @@ module RoB(
     input wire rst,
     input wire rdy,
 
+    output wire rollback,
+
     output wire rob_full,
 
-    output wire rollback,
+    output wire rob_head_pos,
 
     input wire issue,
     input wire [`ADDR_SIZ] issue_pc,
@@ -41,7 +43,9 @@ module RoB(
 
     input wire lsb_done,
     input wire [`DATA_WID] lsb_res,
-    input wire [`ROB_WID] lsb_res_rob_pos
+    input wire [`ROB_WID] lsb_res_rob_pos,
+
+    output wire [`ROB_WID] upd_rob_pos
 );
 
 reg ready[`ROB_SIZ - 1:0];

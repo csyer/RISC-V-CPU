@@ -28,10 +28,12 @@ reg [6:0] len;
 
 reg [7:0] _if_data[`ICACHE_LINE_SIZ - 1:0];
 
-integer i;
-for (i = 0; i < `ICACHE_LINE_SIZ; i = i + 1) begin
-    assign if_data[i * 8 + 7:i * 8] = _if_data[i];
-end
+genvar i;
+generate
+    for (i = 0; i < `ICACHE_LINE_SIZ; i = i + 1) begin
+        assign if_data[i * 8 + 7:i * 8] = _if_data[i];
+    end
+endgenerate
 
 always @(posedge clk) begin
     if (rst) begin

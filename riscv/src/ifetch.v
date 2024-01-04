@@ -29,8 +29,8 @@ module IFetch(
     input wire lsb_full,
     input wire rob_full,
 
-    output wire mem_en,
-    output wire [`ADDR_WID] mem_pc,
+    output reg mem_en,
+    output reg [`ADDR_WID] mem_pc,
     input wire mem_done,
     input wire [`ICACHE_LINE_WID] mem_data,
 

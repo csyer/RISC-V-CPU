@@ -19,9 +19,9 @@ module Decoder(
     // issue
     output reg done,
     output reg [`ROB_WID] rob_pos,
-    output wire [6:0] opcode,
-    output wire [2:0] funct3,
-    output wire funct7,
+    output reg [6:0] opcode,
+    output reg [2:0] funct3,
+    output reg funct7,
     output reg rs1_rdy,
     output reg [`DATA_WID] rs1_val,
     output reg [`ROB_WID] rs1_rob_pos,
@@ -46,7 +46,7 @@ module Decoder(
     output reg rs_en,
     output reg lsb_en,
 
-    output is_ready
+    output reg is_ready
 );
 
 assign reg_rs1 = inst[19:15];

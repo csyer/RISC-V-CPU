@@ -24,7 +24,7 @@ module LSB(
 
     input wire rollback,
 
-    output reg lsb_full,
+    output wire lsb_full,
 
     input wire lsb_en,
     input wire [`ROB_WID] lsb_rob_pos,
@@ -93,11 +93,9 @@ wire input_en = head_io && rob_pos[head] == rob_head_pos;
 wire pop = status && mem_done;
 wire [`LSB_WID] nxt_head = head + pop;
 wire [`LSB_WID] nxt_tail = tail + issue;
-wire nxt_empty = nxt_head == nxt_tail && (empty || pop && !issue)
+wire nxt_empty = nxt_head == nxt_tail && (is_empty || pop && !issue)
 
-always @(*) begin
-    lsb_full = nxt_head == nxt_tail && !nxt_empty;
-end
+assign lsb_full = nxt_head == nxt_tail && !nxt_empty;
 
 // Store/Output: 先 commit 再 store
 // Load：先 Load 再 commit
@@ -147,7 +145,7 @@ always @(posedge clk) begin
             committed[head] <= 0;
             if (commit_tail[`LSB_WID] == head) begin
                 commit_tail <= `LSB_NPOS;
-                empty <= 1;
+                is_empty <= 1;
             end
         end
     end else if (rdy) begin
@@ -167,7 +165,7 @@ always @(posedge clk) begin
 
         case (status) 
             0: begin // IDLE
-                if (!empty && rs1_rdy[head] && rs2_rdy[head] && (store_en || load_en || input_en)) begin
+                if (!is_empty && rs1_rdy[head] && rs2_rdy[head] && (store_en || load_en || input_en)) begin
                     mem_en <= 1;
                     mem_a <= rs1_val[head] + imm[head];
                     status <= 1;
@@ -259,7 +257,7 @@ always @(posedge clk) begin
 
     head <= nxt_head;
     tail <= nxt_tail;
-    empty <= nxt_empty;
+    is_empty <= nxt_empty;
 end
 
 endmodule

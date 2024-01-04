@@ -43,7 +43,8 @@ module IFetch(
     // when RoB commit
     input wire br_pre,
     input wire br_pre_j, // is jump
-    input wire [`ADDR_WID] br_pre_pc
+    input wire [`ADDR_WID] br_pre_pc,
+    input wire [`ADDR_WID] br_res_pc
 )
 
 reg status; // 0: IDLE, 1: FETCH
@@ -80,14 +81,19 @@ always @(posedge clk) begin
         inst_done <= 0;
         status <= 0;
     end else if (rdy) begin
-        if (hit && !rs_full && !lsb_full && !rob_full) begin
-            inst_done <= 1;
-            inst <= _inst;
-            inst_pc <= pc;
-            pc <= pre_pc;
-            inst_pre_j <= pre_j;
-        end else begin
+        if (rollback) begin
             inst_done <= 0;
+            pc <= br_res_pc;
+        end else begin
+            if (hit && !rs_full && !lsb_full && !rob_full) begin
+                inst_done <= 1;
+                inst <= _inst;
+                inst_pc <= pc;
+                pc <= pre_pc;
+                inst_pre_j <= pre_j;
+            end else begin
+                inst_done <= 0;
+            end
         end
             
         case (status)
@@ -114,7 +120,7 @@ end
 // Predictor
 `define PRE_SIZ 64  // 2^6
 reg [1:0] pre_cnt[`PRE_SIZ - 1:0];
-wire [5:0] pre_idx = pre_br_pc[6:2];
+wire [5:0] pre_idx = br_pre_pc[6:2];
 
 integer j;
 always @(posedge clk) begin
@@ -123,8 +129,8 @@ always @(posedge clk) begin
             pre_cnt[j] <= 0;
         end
     end else if (rdy) begin
-        if (pre_br) begin 
-            if (pre_br_j) begin
+        if (br_pre) begin 
+            if (br_pre_j) begin
                 if (pre_cnt[pre_idx] < 2'b11) begin
                     pre_cnt[pre_idx] <= pre_cnt[pre_idx] + 1;
                 end

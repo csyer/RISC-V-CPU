@@ -1,3 +1,6 @@
+`ifndef ALU
+`define ALU
+
 `include "def.v"
 
 `define FUNCT3_ADD  3'b000
@@ -113,3 +116,5 @@ always @(posedge clk) begin
 end
 
 endmodule
+
+`endif

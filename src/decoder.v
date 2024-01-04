@@ -54,11 +54,14 @@ module Decoder(
     input wire [`DATA_WID] lsb_res,
     input wire [`ROB_WID] lsb_res_rob_pos,
 
-    input wire [`ROB_WID] rob_rs1_pos,
-    output wire rob_rs1_rdy,
-    output wire rob_rs1_val,
+    output wire [`ROB_WID] rob_rs1_pos,
+    input wire rob_rs1_rdy,
+    input wire [`DATA_WID] rob_rs1_val,
+    output wire [`ROB_WID] rob_rs2_pos,
+    input wire rob_rs2_rdy,
+    input wire [`DATA_WID] rob_rs2_val,
 
-    input upd_rob_pos
+    input wire [`ROB_WID] upd_rob_pos
 );
 
 assign reg_rs1 = inst[19:15];

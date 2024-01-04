@@ -32,6 +32,11 @@ module cpu(
 
 wire rollback;
 
+wire if_to_mem_en;
+wire [`ADDR_WID] if_to_mem_pc;
+wire mem_to_if_done;
+wire [`ICACHE_LINE_WID] mem_to_if_data;
+
 MemCtrl mem_ctrl(
     .clk(clk_in),
     .rst(rst_in),
@@ -44,13 +49,15 @@ MemCtrl mem_ctrl(
     .mem_a(mem_a),
     .mem_wr(mem_wr),
 
-    .if_en(),
-    .if_pc(),
-    .if_done(),
-    .if_data(),
+    .if_en(if_to_mem_en),
+    .if_pc(if_to_mem_pc),
+    .if_done(mem_to_if_done),
+    .if_data(mem_to_if_data),
 
     .lsb_en(),
     .lsb_done()
+
+
 );
 
 IFetch(

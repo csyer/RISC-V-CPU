@@ -22,10 +22,10 @@ module MemCtrl(
 
     input wire lsb_en,
     input wire lsb_wr,
-    input wire lsb_a,
-    input wire lsb_l,
-    input wire lsb_w,
-    output reg lsb_r,
+    input wire [`ADDR_WID] lsb_a,
+    input wire [2:0] lsb_l,
+    input wire [`DATA_WID] lsb_w,
+    output reg [`DATA_WID] lsb_r,
     output reg lsb_done,
 
     input wire io_buffer_full

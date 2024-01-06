@@ -89,31 +89,34 @@ always @(posedge clk) begin
         inst_done <= 0;
         status <= 0;
     end else if (rdy) begin
+        // $display("fetch addr %H %B", pc, _inst);
         if (rollback) begin
             inst_done <= 0;
             pc <= br_res_pc;
         end else begin
+            // if (!lsb_full) $display("%X %X %X", rs_full, lsb_full, rob_full);
             if (hit && !rs_full && !lsb_full && !rob_full) begin
+                // $display("predictor %H %H", pc, pre_pc);
                 inst_done <= 1;
                 inst <= _inst;
                 inst_pc <= pc;
                 pc <= pre_pc;
                 inst_pre_j <= pre_j;
-            end else begin
-                inst_done <= 0;
-            end
+            end else inst_done <= 0;
         end
-            
+
         case (status)
             0: begin // IDLE
                 if (!hit) begin
+                    // $display("cache miss");
                     mem_en <= 1;
-                    mem_pc <= pc & 32'hFFFFFFC0;
+                    mem_pc <= {pc[`ICACHE_TAG], pc[`ICACHE_IDX], 6'b0};
                     status <= 1;
                 end
             end
             1: begin // FETCH
                 if (mem_done) begin
+                    // $display("from mem: %B %H", mem_pc_idx, mem_data);
                     valid[mem_pc_idx] <= 1;
                     tag[mem_pc_idx] <= mem_pc_tag;
                     data[mem_pc_idx] <= mem_data;
@@ -126,9 +129,9 @@ always @(posedge clk) begin
 end
 
 // Predictor
-`define PRE_SIZ 64  // 2^6
+`define PRE_SIZ 256  // 2^8
 reg [1:0] pre_cnt[`PRE_SIZ - 1:0];
-wire [5:0] pre_idx = br_pre_pc[6:2];
+wire [7:0] pre_idx = br_pre_pc[9:2];
 
 integer j;
 always @(posedge clk) begin
@@ -138,6 +141,7 @@ always @(posedge clk) begin
         end
     end else if (rdy) begin
         if (br_pre) begin 
+            // $display("branch commit");
             if (br_pre_j) begin
                 if (pre_cnt[pre_idx] < 2'b11) begin
                     pre_cnt[pre_idx] <= pre_cnt[pre_idx] + 1;
@@ -151,7 +155,7 @@ always @(posedge clk) begin
     end
 end
 
-wire [5:0] pre_pc_idx = pc[6:2];
+wire [7:0] pre_pc_idx = pc[9:2];
 always @(*) begin
     pre_pc = pc + 4;
     pre_j = 0;
@@ -164,8 +168,9 @@ always @(*) begin
         end
         `OPCODE_B: begin
             if (pre_cnt[pre_pc_idx] >= 2'b10) begin 
-                pre_pc = {{20{_inst[31]}}, _inst[7], _inst[30:25], _inst[11:8], 1'b0};
+                pre_pc = pc + {{20{_inst[31]}}, _inst[7], _inst[30:25], _inst[11:8], 1'b0};
                 pre_j = 1;
+            // $display("br pre %B %H", _inst, pre_pc);
             end
         end
     endcase

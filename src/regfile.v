@@ -42,6 +42,8 @@ wire upd = !is_rdy[commit_rd] && rob_pos[commit_rd] == commit_rob_pos;
 
 integer i;
 always @(posedge clk) begin
+    // for (i = 0; i < 32; i++)
+        // $display("REG %D : %D %H %D", 1, is_rdy[1], val[1], rob_pos[1]);
     if (rst) begin 
         for (i = 0; i < `REG_SIZ; i = i + 1) begin 
             val[i] <= 32'b0;
@@ -51,9 +53,9 @@ always @(posedge clk) begin
     end else if(rdy) begin
         // x0 恒为 0
         if (commit && commit_rd != 0) begin
+            val[commit_rd] <= commit_val;
             if (upd) begin
                 is_rdy[commit_rd] <= 1'b1;
-                val[commit_rd] <= commit_val;
                 rob_pos[commit_rd] <= 4'b0; 
             end
         end 
@@ -61,11 +63,12 @@ always @(posedge clk) begin
             is_rdy[issue_rd] <= 1'b0;
             rob_pos[issue_rd] <= issue_rob_pos;
         end
-    end
-    if (rollback) begin
-        for (i = 0; i < `REG_SIZ; i = i + 1) begin
-            is_rdy[i] <= 1'b0;
-            rob_pos[i] <= 4'b0;
+        
+        if (rollback) begin
+            for (i = 0; i < `REG_SIZ; i = i + 1) begin
+                is_rdy[i] <= 1'b1;
+                rob_pos[i] <= 4'b0;
+            end
         end
     end
 end
@@ -77,6 +80,7 @@ always @(*) begin
         rs1_val = commit_val;
         rs1_rob_pos = 4'b0;
     end else begin
+        // $display("dbg %D %D", rs1, val[rs1]);
         rs1_rdy = is_rdy[rs1];
         rs1_val = val[rs1];
         rs1_rob_pos = rob_pos[rs1];

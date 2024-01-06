@@ -104,11 +104,13 @@ always @(posedge clk) begin
                         res_pc <= pc + imm;
                     end else res_pc <= pc + 4;
                 `OPCODE_JAL: begin
+                    // $display("alu jal %D", pc);
                     res_j <= 1;
                     res_cal <= pc + 4;
                     res_pc  <= pc + imm;
                 end
                 `OPCODE_JALR: begin
+                    // $display("alu jalr %D", val1 + imm);
                     res_j <= 1;
                     res_cal <= pc + 4;
                     res_pc  <= val1 + imm;

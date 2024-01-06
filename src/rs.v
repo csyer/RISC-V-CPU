@@ -38,10 +38,15 @@ module RS(
     output reg [`DATA_WID] alu_val1,
     output reg [`DATA_WID] alu_val2,
     output reg [`DATA_WID] alu_imm,
+    output reg [`ADDR_WID] alu_pc,
 
     input wire alu_done,
     input wire [`DATA_WID] alu_res,
-    input wire [`ROB_WID] alu_res_rob_pos
+    input wire [`ROB_WID] alu_res_rob_pos,
+
+    input wire lsb_done,
+    input wire [`DATA_WID] lsb_res,
+    input wire [`ROB_WID] lsb_res_rob_pos
 );
 
 reg busy[`RS_SIZ - 1:0];
@@ -68,15 +73,18 @@ always @(*) begin
     ready_pos = `RS_NPOS;
     rs_full = 1;
     for (i = 0; i < `RS_SIZ; i = i + 1) begin
+        ready[i] = 0;
         if (!busy[i]) begin
-            if (i != free_pos || !rs_en) rs_full = 0;
+            // $display("not busy %D", i);
             free_pos = i;
+            if (i != free_pos || !rs_en) rs_full = 0;
         end
         if (busy[i] && rs1_rdy[i] && rs2_rdy[i]) begin
             ready[i] = 1;
             ready_pos = i;
-        end else ready[i] = 0;
+        end
     end
+    // $display("free_pos %D %D", free_pos, rs_full);
 end
 
 integer j, k;
@@ -87,22 +95,9 @@ always @(posedge clk) begin
         end
         alu_en <= 0;
     end else if (rdy) begin
-        if (rs_en) begin
-            busy[free_pos] <= 1;
-            rob_pos[free_pos] <= rs_rob_pos;
-            opcode[free_pos] <= rs_opcode;
-            funct3[free_pos] <= rs_funct3;
-            funct7[free_pos] <= rs_funct7;
-            rs1_rdy[free_pos] <= rs_rs1_rdy;
-            rs1_val[free_pos] <= rs_rs1_val;
-            rs1_rob_pos[free_pos] <= rs_rs1_rob_pos;
-            rs2_rdy[free_pos] <= rs_rs2_rdy;
-            rs2_val[free_pos] <= rs_rs2_val;
-            rs2_rob_pos[free_pos] <= rs_rs2_rob_pos;
-            imm[free_pos] <= rs_imm;
-            pc[free_pos] <= rs_pc;
-        end
+        alu_en <= 0;
         if (ready_pos != `RS_NPOS) begin
+            // $display("rs to alu %D %D", rob_pos[ready_pos], ready_pos);
             alu_en <= 1;
             alu_opcode <= opcode[ready_pos];
             alu_funct3 <= funct3[ready_pos];
@@ -110,6 +105,8 @@ always @(posedge clk) begin
             alu_val1 <= rs1_val[ready_pos];
             alu_val2 <= rs2_val[ready_pos];
             alu_imm <= imm[ready_pos];
+            alu_pc <= pc[ready_pos];
+            alu_rob_pos <= rob_pos[ready_pos];
             busy[ready_pos] <= 0;
         end
 
@@ -128,6 +125,38 @@ always @(posedge clk) begin
                     rs2_val[k] <= alu_res;
                 end
             end
+        end
+        if (lsb_done) begin
+            for (k = 0; k < `RS_SIZ; k = k + 1) begin
+                if (rs1_rob_pos[k] == lsb_res_rob_pos && !rs1_rdy[k]) begin
+                    rs1_rdy[k] <= 1;
+                    rs1_rob_pos[k] <= 0;
+                    rs1_val[k] <= lsb_res;
+                end
+                if (rs2_rob_pos[k] == lsb_res_rob_pos && !rs2_rdy[k]) begin
+                    rs2_rdy[k] <= 1;
+                    rs2_rob_pos[k] <= 0;
+                    rs2_val[k] <= lsb_res;
+                end
+            end
+        end
+
+        if (rs_en) begin
+            // $display("rs en %H %D %D", rs_pc, rs_rob_pos, free_pos);
+            // $display("rely %D %D %D", rs_rob_pos, rs_rs1_rob_pos, rs_rs2_rob_pos);
+            busy[free_pos] <= 1;
+            rob_pos[free_pos] <= rs_rob_pos;
+            opcode[free_pos] <= rs_opcode;
+            funct3[free_pos] <= rs_funct3;
+            funct7[free_pos] <= rs_funct7;
+            rs1_rdy[free_pos] <= rs_rs1_rdy;
+            rs1_val[free_pos] <= rs_rs1_val;
+            rs1_rob_pos[free_pos] <= rs_rs1_rob_pos;
+            rs2_rdy[free_pos] <= rs_rs2_rdy;
+            rs2_val[free_pos] <= rs_rs2_val;
+            rs2_rob_pos[free_pos] <= rs_rs2_rob_pos;
+            imm[free_pos] <= rs_imm;
+            pc[free_pos] <= rs_pc;
         end
     end
 end

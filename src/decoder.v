@@ -72,17 +72,19 @@ assign rob_rs1_pos = reg_rs1_rob_pos;
 assign rob_rs2_pos = reg_rs2_rob_pos;
 
 always @(*) begin
-    rob_pos = upd_rob_pos;
     opcode = inst[6:0];
     funct3 = inst[14:12];
     funct7 = inst[30];
     rd = inst[11:7];
     imm = 0;
-    is_store = 0;
     pc = inst_pc;
     pre_j = inst_pre_j;
 
     issue = 0;
+    rob_pos = upd_rob_pos;
+    rs_en = 0;
+    lsb_en = 0;
+
     rs1_rdy = 1;
     rs1_val = 0;
     rs1_rob_pos = 0;
@@ -90,20 +92,22 @@ always @(*) begin
     rs2_val = 0;
     rs2_rob_pos = 0;
 
-    if (rst || !inst_done || rollback) begin
-    end else if (rdy) begin
+    if (rst || !inst_done || rollback || !rdy) begin
+        ;
+    end else begin
         issue = 1;
 
         // RS LSB RoB 都可能更新依赖
         if (reg_rs1_rdy) begin
             rs1_val = reg_rs1_val;
-        end else if (alu_done && reg_rs1_rob_pos == alu_res_rob_pos) begin
+            // $display("dec dbg %D %D %D %D", rob_pos, reg_rs1_rdy, reg_rs1_val, rs1_val);
+        end else if (alu_done && rob_rs1_pos == alu_res_rob_pos) begin
             rs1_val = alu_res;
-        end else if (lsb_done && reg_rs1_rob_pos == lsb_res_rob_pos) begin
+        end else if (lsb_done && rob_rs1_pos == lsb_res_rob_pos) begin
             rs1_val = lsb_res;
         end else if (rob_rs1_rdy) begin
             rs1_val = rob_rs1_val;
-        end begin 
+        end else begin 
             rs1_val = 0;
             rs1_rdy = reg_rs1_rdy;
             rs1_rob_pos = reg_rs1_rob_pos;
@@ -111,20 +115,24 @@ always @(*) begin
 
         if (reg_rs2_rdy) begin
             rs2_val = reg_rs2_val;
-        end else if (alu_done && reg_rs2_rob_pos == alu_res_rob_pos) begin
+        end else if (alu_done && rob_rs2_pos == alu_res_rob_pos) begin
             rs2_val = alu_res;
-        end else if (lsb_done && reg_rs2_rob_pos == lsb_res_rob_pos) begin
+        end else if (lsb_done && rob_rs2_pos == lsb_res_rob_pos) begin
             rs2_val = lsb_res;
         end else if (rob_rs2_rdy) begin
             rs2_val = rob_rs2_val;
-        end begin 
+        end else begin 
             rs2_val = 0;
             rs2_rdy = reg_rs2_rdy;
             rs2_rob_pos = reg_rs2_rob_pos;
         end
 
+        // $display("decoder issue %D %H", rob_pos, pc);
+
+        is_store = 0;
         case (opcode)
             `OPCODE_L: begin
+                // $display("decode L");
                 lsb_en = 1;
                 rs2_rdy = 1;
                 rs2_val = 0;
@@ -135,12 +143,15 @@ always @(*) begin
                 is_store = 1;
                 lsb_en = 1;
                 rd = 0;
-                imm = {{21{inst[31]}}, inst[30:20]};
+                imm = {{21{inst[31]}}, inst[30:25], inst[11:7]};
+                // $display("decode S %H", imm);
             end
             `OPCODE_CAL: begin
+                // $display("decode CAL");
                 rs_en = 1;
             end
             `OPCODE_CALI: begin
+                // $display("decode CALI");
                 rs_en = 1;
                 rs2_rdy = 1;
                 rs2_val = 0;
@@ -148,11 +159,13 @@ always @(*) begin
                 imm = {{21{inst[31]}}, inst[30:20]};
             end
             `OPCODE_B: begin
+                // $display("decode B %H %D", pc, rob_pos);
                 rs_en = 1;
                 rd = 0;
                 imm = {{20{inst[31]}}, inst[7], inst[30:25], inst[11:8], 1'b0};
             end
             `OPCODE_LUI: begin
+                // $display("decode LUI");
                 rs_en = 1;
                 rs1_rdy = 1;
                 rs1_val = 0;
@@ -163,6 +176,7 @@ always @(*) begin
                 imm = {inst[31:12], 12'b0};
             end
             `OPCODE_AUIPC: begin
+                // $display("decode AUIPC");
                 rs_en = 1;
                 rs1_rdy = 1;
                 rs1_val = 0;
@@ -173,6 +187,7 @@ always @(*) begin
                 imm = {inst[31:12], 12'b0};
             end
             `OPCODE_JAL: begin
+                // $display("decode JAL");
                 rs_en = 1;
                 rs1_rdy = 1;
                 rs1_val = 0;
@@ -183,6 +198,7 @@ always @(*) begin
                 imm = {{12{inst[31]}}, inst[19:12], inst[20], inst[30:21], 1'b0};
             end
             `OPCODE_JALR: begin
+                // $display("decode JALR");
                 rs_en = 1;
                 rs2_rdy = 1;
                 rs2_val = 0;

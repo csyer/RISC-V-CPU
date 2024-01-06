@@ -179,7 +179,7 @@ wire [`ROB_WID] issue_rs2_rob_pos;
 wire [`DATA_WID] issue_imm;
 wire [`ADDR_WID] issue_pc;
 wire issue_pre_j;
-wire issue_ls;
+wire issur_is_store;
 
 wire dec_to_rs_en;
 wire dec_to_lsb_en;
@@ -200,8 +200,6 @@ wire [`DATA_WID] rob_to_dec_rs1_val;
 wire [`ROB_WID]  dec_to_rob_rs2_pos;
 wire rob_to_dec_rs2_rdy;
 wire [`DATA_WID] rob_to_dec_rs2_val;
-
-wire [`ROB_WID] rob_to_dec_upd_pos;
 
 wire [`ROB_WID] upd_rob_pos;
 
@@ -261,7 +259,7 @@ Decoder decoder(
     .rob_rs2_rdy(rob_to_dec_rs2_rdy),
     .rob_rs2_val(rob_to_dec_rs2_val),
 
-    .upd_rob_pos(rob_to_dec_upd_pos)
+    .upd_rob_pos(upd_rob_pos)
 );
 
 wire rs_to_alu_en;
@@ -271,7 +269,7 @@ wire rs_to_alu_funct7;
 wire [`DATA_WID] rs_to_alu_val1;
 wire [`DATA_WID] rs_to_alu_val2;
 wire [`DATA_WID] rs_to_alu_imm;
-wire [`ROB_WID] rs_to_alu_pos;
+wire [`ROB_WID] rs_to_alu_rob_pos;
 wire [`ADDR_WID] rs_to_alu_pc;
 
 ALU alu(
@@ -288,7 +286,7 @@ ALU alu(
     .val1(rs_to_alu_val1),
     .val2(rs_to_alu_val2),
     .imm(rs_to_alu_imm),
-    .rob_pos(rs_to_alu_pos),
+    .rob_pos(rs_to_alu_rob_pos),
     .pc(rs_to_alu_pc),
 
     .res_done(alu_done),
@@ -322,17 +320,22 @@ RS rs(
     .rs_pc(issue_pc),
 
     .alu_en(rs_to_alu_en),
-    .alu_rob_pos(rs_to_alu_pos),
+    .alu_rob_pos(rs_to_alu_rob_pos),
     .alu_opcode(rs_to_alu_opcode),
     .alu_funct3(rs_to_alu_funct3),
     .alu_funct7(rs_to_alu_funct7),
     .alu_val1(rs_to_alu_val1),
     .alu_val2(rs_to_alu_val2),
     .alu_imm(rs_to_alu_imm),
+    .alu_pc(rs_to_alu_pc),
 
     .alu_done(alu_done),
     .alu_res(alu_res),
-    .alu_res_rob_pos(alu_res_rob_pos)
+    .alu_res_rob_pos(alu_res_rob_pos),
+
+    .lsb_done(lsb_done),
+    .lsb_res(lsb_res),
+    .lsb_res_rob_pos(lsb_res_rob_pos)
 );
 
 wire rob_to_lsb_commit_store;
@@ -425,7 +428,14 @@ RoB rob(
     .lsb_res(lsb_res),
     .lsb_res_rob_pos(lsb_res_rob_pos),
 
-    .upd_rob_pos(upd_rob_pos)
+    .upd_rob_pos(upd_rob_pos),
+
+    .rs1_rob_pos(dec_to_rob_rs1_pos),
+    .rs1_rdy(rob_to_dec_rs1_rdy),
+    .rs1_val(rob_to_dec_rs1_val),
+    .rs2_rob_pos(dec_to_rob_rs2_pos),
+    .rs2_rdy(rob_to_dec_rs2_rdy),
+    .rs2_val(rob_to_dec_rs2_val)
 );
 
 endmodule

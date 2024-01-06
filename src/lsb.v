@@ -89,6 +89,7 @@ wire head_io = head_addr[17:16] == 2'b11;
 wire store_en = ls[head] == 1;
 wire load_en = ls[head] == 0 && !head_io;
 wire input_en = head_io && rob_pos[head] == rob_head_pos;
+wire exec_head = !is_empty && rs1_rdy[head] && rs2_rdy[head] && (!ls[head] && !rollback && (!head_io || rob_pos[head] == rob_head_pos) || committed[head]);
 
 wire pop = status && mem_done;
 wire [`LSB_WID] nxt_head = head + pop;
@@ -103,7 +104,9 @@ assign lsb_full = nxt_head == nxt_tail && !nxt_empty;
 
 integer i;
 always @(posedge clk) begin
+    // $display("lsb: %D %D %D", head, tail, commit_tail);
     if (rst || (rollback && commit_tail == `LSB_NPOS)) begin
+        // $display("lsb rst");
         status <= 0;
         mem_en <= 0;
         head <= 0;
@@ -116,15 +119,16 @@ always @(posedge clk) begin
             rob_pos[i] <= 0;
             ls[i] <= 0;
             funct3[i] <= 0;
-            rs1_rdy[i] <= 0;
+            rs1_rdy[i] <= 1;
             rs1_val[i] <= 0;
             rs1_rob_pos[i] <= 0;
-            rs2_rdy[i] <= 0;
+            rs2_rdy[i] <= 1;
             rs2_val[i] <= 0;
             rs2_rob_pos[i] <= 0;
             imm[i] <= 0;
         end
     end else if (rollback) begin
+        // $display("rollback");
         // 分支前的指令一定都被 commit 过
         // 只要清空还没被 commit 的指令
         tail <= commit_tail + 1;
@@ -150,6 +154,7 @@ always @(posedge clk) begin
         end
     end else if (rdy) begin
         if (lsb_en) begin
+            // $display("lsb en %D %D", lsb_rob_pos, lsb_ls);
             busy[tail] <= 1;
             rob_pos[tail] <= lsb_rob_pos;
             ls[tail] <= lsb_ls;
@@ -163,11 +168,15 @@ always @(posedge clk) begin
             imm[tail] <= lsb_imm;
         end
 
+        done <= 0;
         case (status) 
             0: begin // IDLE
-                if (!is_empty && rs1_rdy[head] && rs2_rdy[head] && (store_en || load_en || input_en)) begin
+                mem_en <= 0;
+                if (exec_head) begin
+                    // $display("lsb execute head");
                     mem_en <= 1;
-                    mem_a <= rs1_val[head] + imm[head];
+                    mem_a <= head_addr;
+                    // $display("lsb store %H", head_addr);
                     status <= 1;
                     if (ls[head]) begin // Store
                         mem_w <= rs2_val[head];
@@ -187,14 +196,14 @@ always @(posedge clk) begin
                             `FUNCT3_LHU: mem_l <= 3'd2;
                         endcase
                     end
-                end else mem_en <= 0;
+                end
             end
             1: begin // Load/Store
-                done <= 0;
                 if (mem_done) begin
                     mem_en <= 0;
                     status <= 0;
                     busy[head] <= 0;
+                    committed[head] <= 0;
                     if (!ls[head]) begin // Load 
                         done <= 1;
                         res_rob_pos <= rob_pos[head];
@@ -208,56 +217,57 @@ always @(posedge clk) begin
                             `FUNCT3_LHU: res <= {16'b0, mem_r[15:0]};
                         endcase
                     end
-                end
-                if (commit_tail[`LSB_WID] == head) begin
-                    commit_tail <= `LSB_NPOS;
+                    if (commit_tail[`LSB_WID] == head) begin
+                        commit_tail <= `LSB_NPOS;
+                    end
                 end
             end
         endcase
-    end
 
-    if (alu_done) begin
-        for (i = 0; i < `LSB_SIZ; i = i + 1) begin
-            if (rs1_rdy[i] && rs1_rob_pos[i] == alu_res_rob_pos) begin
-                rs1_rdy[i] <= 1;
-                rs1_rob_pos[i] <= 0;
-                rs1_val[i] <= alu_res;
-            end
-            if (rs2_rdy[i] && rs2_rob_pos[i] == alu_res_rob_pos) begin
-                rs2_rdy[i] <= 1;
-                rs2_rob_pos[i] <= 0;
-                rs2_val[i] <= alu_res;
+        if (alu_done) begin
+            for (i = 0; i < `LSB_SIZ; i = i + 1) begin
+                if (!rs1_rdy[i] && rs1_rob_pos[i] == alu_res_rob_pos) begin
+                    rs1_rdy[i] <= 1;
+                    rs1_rob_pos[i] <= 0;
+                    rs1_val[i] <= alu_res;
+                end
+                if (!rs2_rdy[i] && rs2_rob_pos[i] == alu_res_rob_pos) begin
+                    rs2_rdy[i] <= 1;
+                    rs2_rob_pos[i] <= 0;
+                    rs2_val[i] <= alu_res;
+                end
             end
         end
-    end
 
-    if (lsb_done) begin
-        for (i = 0; i < `LSB_SIZ; i = i + 1) begin
-            if (rs1_rdy[i] && rs1_rob_pos[i] == lsb_res_rob_pos) begin
-                rs1_rdy[i] <= 1;
-                rs1_rob_pos[i] <= 0;
-                rs1_val[i] <= lsb_res;
-            end
-            if (rs2_rdy[i] && rs2_rob_pos[i] == lsb_res_rob_pos) begin
-                rs2_rdy[i] <= 1;
-                rs2_rob_pos[i] <= 0;
-                rs2_val[i] <= lsb_res;
-            end
-        end
-    end
-
-    if (commit_store) begin
-        for (i = 0; i < `LSB_SIZ; i = i + 1) begin
-            if (busy[i] && rob_pos[i] == commit_rob_pos) begin
-                committed[i] <= 1;
-                commit_tail <= {1'b0, i[`LSB_WID]};
+        if (lsb_done) begin
+            for (i = 0; i < `LSB_SIZ; i = i + 1) begin
+                if (!rs1_rdy[i] && rs1_rob_pos[i] == lsb_res_rob_pos) begin
+                    rs1_rdy[i] <= 1;
+                    rs1_rob_pos[i] <= 0;
+                    rs1_val[i] <= lsb_res;
+                end
+                if (!rs2_rdy[i] && rs2_rob_pos[i] == lsb_res_rob_pos) begin
+                    rs2_rdy[i] <= 1;
+                    rs2_rob_pos[i] <= 0;
+                    rs2_val[i] <= lsb_res;
+                end
             end
         end
-    end
 
-    head <= nxt_head;
-    tail <= nxt_tail;
-    is_empty <= nxt_empty;
+        if (commit_store) begin
+            for (i = 0; i < `LSB_SIZ; i = i + 1) begin
+                if (busy[i] && rob_pos[i] == commit_rob_pos && !committed[i]) begin
+                    committed[i] <= 1;
+                    commit_tail <= {1'b0, i[`LSB_WID]};
+                end
+            end
+        end
+
+        // $display("upd %D %D", nxt_head, nxt_tail);
+        head <= nxt_head;
+        tail <= nxt_tail;
+        is_empty <= nxt_empty;
+    end
 end
 
 endmodule

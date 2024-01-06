@@ -46,7 +46,14 @@ module RoB(
     input wire [`DATA_WID] lsb_res,
     input wire [`ROB_WID] lsb_res_rob_pos,
 
-    output wire [`ROB_WID] upd_rob_pos
+    output wire [`ROB_WID] upd_rob_pos,
+
+    input wire [`ROB_WID] rs1_rob_pos,
+    output wire rs1_rdy,
+    output wire [`DATA_WID] rs1_val,
+    input wire [`ROB_WID] rs2_rob_pos,
+    output wire rs2_rdy,
+    output wire [`DATA_WID] rs2_val
 );
 
 reg ready[`ROB_SIZ - 1:0];
@@ -55,7 +62,7 @@ reg [6:0] opcode[`ROB_SIZ - 1:0];
 reg [`REG_WID] rd[`ROB_SIZ - 1:0];
 reg [`DATA_WID] val[`ROB_SIZ - 1:0];
 reg res_j[`ROB_SIZ - 1:0];
-reg res_pc[`ROB_SIZ - 1:0];
+reg [`ADDR_WID] res_pc[`ROB_SIZ - 1:0];
 reg pre_j[`ROB_SIZ - 1:0];
 
 reg [`ROB_WID] head;
@@ -68,15 +75,21 @@ wire [`ROB_WID] nxt_tail = tail + issue;
 wire nxt_empty = nxt_head == nxt_tail && (is_empty || commit && !issue);
 
 assign rob_full = nxt_head == nxt_tail && !nxt_empty;
-
 assign rob_head_pos = head;
+assign upd_rob_pos = tail;
+
+assign rs1_rdy = ready[rs1_rob_pos];
+assign rs1_val = val[rs1_rob_pos];
+assign rs2_rdy = ready[rs2_rob_pos];
+assign rs2_val = val[rs2_rob_pos];
 
 integer i;
 always @(posedge clk) begin
+    // $display("RoB: %D %D %D", head, tail, is_empty);
     if (rst || rollback) begin
         head <= 0;
         tail <= 0;
-        is_empty <= 0;
+        is_empty <= 1;
         rollback <= 0;
         commit_br <= 0;
         lsb_store <= 0;
@@ -92,7 +105,9 @@ always @(posedge clk) begin
             pre_j[i] <= 0;
         end
     end else if (rdy) begin
+        is_empty <= nxt_empty;
         if (issue) begin
+            // $display("issue %D %H %B", tail, issue_pc, issue_opcode);
             if (issue_opcode == `OPCODE_S) ready[tail] <= 1;
             else ready[tail] <= 0;
             pc[tail] <= issue_pc;
@@ -103,12 +118,14 @@ always @(posedge clk) begin
         end
 
         if (alu_done) begin
+            // $display("alu upd %D %D %D %H", alu_res_rob_pos, alu_res, ready[alu_res_rob_pos], alu_res_pc);
             ready[alu_res_rob_pos] <= 1;
             val[alu_res_rob_pos] <= alu_res;
             res_j[alu_res_rob_pos] <= alu_res_j;
             res_pc[alu_res_rob_pos] <= alu_res_pc;
         end
         if (lsb_done) begin
+            // $display("lsb upd %D %D %D", lsb_res_rob_pos, lsb_res, ready[lsb_res_rob_pos]);
             ready[lsb_res_rob_pos] <= 1;
             val[lsb_res_rob_pos] <= lsb_res;
         end
@@ -117,21 +134,25 @@ always @(posedge clk) begin
         commit_br <= 0;
         lsb_store <= 0;
         if (commit) begin
+            // $display("commit %D %H %B", head, pc[head], opcode[head]);
             commit_rob_pos <= head;
             case (opcode[head])
                 `OPCODE_S: begin
                     lsb_store <= 1;
                 end
                 `OPCODE_B: begin
+                    // $display("commit branch %D %H", res_j[head], pc[head]);
                     commit_br <= 1;
                     commit_br_j <= res_j[head];
                     commit_br_pc <= pc[head];
                     if (pre_j[head] != res_j[head]) begin
+                        // $display("commit rollback");
                         rollback <= 1;
                         commit_res_pc <= res_pc[head];
                     end
                 end
                 `OPCODE_JALR: begin
+                    // $display("new pc %H", res_pc[head]);
                     commit_reg <= 1;
                     commit_reg_rd <= rd[head];
                     commit_reg_val <= val[head];
@@ -139,6 +160,7 @@ always @(posedge clk) begin
                     commit_res_pc <= res_pc[head];
                 end
                 default: begin // CAL, CALI, L, LUI, AUIPC, JAL
+                    // $display("commit reg %D %D", rd[head], val[head]);
                     commit_reg <= 1;
                     commit_reg_rd <= rd[head];
                     commit_reg_val <= val[head];

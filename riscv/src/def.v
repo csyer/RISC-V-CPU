@@ -1,16 +1,16 @@
-`define ROB_SIZ 16
+`define ROB_SIZ 32
 `define REG_SIZ 32
 
 `define DATA_WID 31:0
 `define INST_WID 31:0
 `define ADDR_WID 31:0
-`define ROB_WID 3:0
+`define ROB_WID 4:0
 `define REG_WID 4:0
 
-`define ICACHE_LINE_NUM 16
-`define ICACHE_LINE_LEN 64
+`define ICACHE_LINE_NUM 32
+`define ICACHE_LINE_LEN 32
 `define ICACHE_LINE_WID `ICACHE_LINE_LEN * 8 - 1:0
-`define ICACHE_INST_NUM 16
+`define ICACHE_INST_NUM 8
 
 `define OPCODE_L      7'b0000011
 `define OPCODE_S      7'b0100011

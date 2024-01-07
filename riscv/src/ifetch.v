@@ -5,17 +5,17 @@
 
 `define ICACHE_TAG_WID 21:0
 `define ICACHE_TAG 31:10
-`define ICACHE_IDX_WID 3:0
-`define ICACHE_IDX 9:6
-`define ICACHE_BS_WID 3:0
-`define ICACHE_BS 5:2
+`define ICACHE_IDX_WID 4:0
+`define ICACHE_IDX 9:5
+`define ICACHE_BS_WID 2:0
+`define ICACHE_BS 4:2
 /*
 每条指令长度为 4 Byte
 为了使指令完整出现在 ICACHE Line 中
 在指令不重合的情况下
 最高的 30 位唯一确定一条指令
 
-ICACHE 有 16 行，每行 16 条 4 Byte 指令
+ICACHE 有 32 行，每行 8 条 4 Byte 指令
 */
 
 module IFetch(
@@ -96,6 +96,7 @@ always @(posedge clk) begin
         end else begin
             // if (!lsb_full) $display("%X %X %X", rs_full, lsb_full, rob_full);
             if (hit && !rs_full && !lsb_full && !rob_full) begin
+                // $display("fetch addr %H %B", pc, _inst);
                 // $display("predictor %H %H", pc, pre_pc);
                 inst_done <= 1;
                 inst <= _inst;
@@ -110,7 +111,7 @@ always @(posedge clk) begin
                 if (!hit) begin
                     // $display("cache miss");
                     mem_en <= 1;
-                    mem_pc <= {pc[`ICACHE_TAG], pc[`ICACHE_IDX], 6'b0};
+                    mem_pc <= {pc[`ICACHE_TAG], pc[`ICACHE_IDX], 5'b0};
                     status <= 1;
                 end
             end
@@ -129,9 +130,10 @@ always @(posedge clk) begin
 end
 
 // Predictor
-`define PRE_SIZ 256  // 2^8
+`define PRE_SIZ 1024  // 2^10
+`define PRE_WID 11:2
 reg [1:0] pre_cnt[`PRE_SIZ - 1:0];
-wire [7:0] pre_idx = br_pre_pc[9:2];
+wire [9:0] pre_idx = br_pre_pc[`PRE_WID];
 
 integer j;
 always @(posedge clk) begin
@@ -155,7 +157,7 @@ always @(posedge clk) begin
     end
 end
 
-wire [7:0] pre_pc_idx = pc[9:2];
+wire [9:0] pre_pc_idx = pc[`PRE_WID];
 always @(*) begin
     pre_pc = pc + 4;
     pre_j = 0;

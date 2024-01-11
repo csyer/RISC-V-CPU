@@ -101,9 +101,9 @@ always @(*) begin
         if (reg_rs1_rdy) begin
             rs1_val = reg_rs1_val;
             // $display("dec dbg %D %D %D %D", rob_pos, reg_rs1_rdy, reg_rs1_val, rs1_val);
-        end else if (alu_done && rob_rs1_pos == alu_res_rob_pos) begin
+        end else if (alu_done && reg_rs1_rob_pos == alu_res_rob_pos) begin
             rs1_val = alu_res;
-        end else if (lsb_done && rob_rs1_pos == lsb_res_rob_pos) begin
+        end else if (lsb_done && reg_rs1_rob_pos == lsb_res_rob_pos) begin
             rs1_val = lsb_res;
         end else if (rob_rs1_rdy) begin
             rs1_val = rob_rs1_val;
@@ -115,9 +115,9 @@ always @(*) begin
 
         if (reg_rs2_rdy) begin
             rs2_val = reg_rs2_val;
-        end else if (alu_done && rob_rs2_pos == alu_res_rob_pos) begin
+        end else if (alu_done && reg_rs2_rob_pos == alu_res_rob_pos) begin
             rs2_val = alu_res;
-        end else if (lsb_done && rob_rs2_pos == lsb_res_rob_pos) begin
+        end else if (lsb_done && reg_rs2_rob_pos == lsb_res_rob_pos) begin
             rs2_val = lsb_res;
         end else if (rob_rs2_rdy) begin
             rs2_val = rob_rs2_val;
